@@ -1,0 +1,6 @@
+<ul>
+  <li>Автор: {{ post.author.get_full_name }}</li>
+  <li>Дата публикации: {{ post.pub_date|date:"d E Y" }}</li>
+  <li>Группа: {{ post.group }}</li>
+</ul>
+<p>{{ post.text|linebreaksbr }}</p>
