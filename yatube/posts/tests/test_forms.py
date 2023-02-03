@@ -4,7 +4,6 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 
-from ..forms import PostForm
 from ..models import Group, Post
 
 
@@ -16,6 +15,7 @@ POST_EDIT_URL = 'posts:post_edit'
 
 User = get_user_model()
 
+
 class PostFormTest(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -24,8 +24,8 @@ class PostFormTest(TestCase):
         cls.post = Post.objects.create(
             text='Test post text',
             author=cls.author,
-            group = Group.objects.create(
-                title = 'Test group one',
+            group=Group.objects.create(
+                title='Test group one',
                 slug='test-group-one',
                 description='Test group description'
             )
@@ -57,8 +57,7 @@ class PostFormTest(TestCase):
             follow=True,
         )
         self.assertRedirects(response,
-            reverse(PROFILE_URL, kwargs={'username': self.user})
-        )
+            reverse(PROFILE_URL, kwargs={'username': self.user}))
         self.assertEqual(Post.objects.count(), posts_count + 1)
         self.assertTrue(
             Post.objects.filter(
@@ -75,8 +74,7 @@ class PostFormTest(TestCase):
         }
         response_edit = self.authorized_post_author.post(
             reverse(POST_EDIT_URL,
-                    kwargs={'post_id': self.post.pk}
-            ),
+                    kwargs={'post_id': self.post.pk}),
             data=form_data,
             follow=True,
         )

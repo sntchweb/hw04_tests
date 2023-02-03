@@ -176,7 +176,7 @@ class PaginatorTests(TestCase):
         super().setUpClass()
         cls.author = User.objects.create_user(username='test_paginator0')
         cls.group = Group.objects.create(
-            title ='Test group title',
+            title='Test group title',
             slug='test_group',
             description='Test group description'
         )

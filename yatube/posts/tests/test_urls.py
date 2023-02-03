@@ -33,11 +33,10 @@ class PostURLSTests(TestCase):
             author=cls.author,
         )
         cls.group = Group.objects.create(
-            title ='Test group title',
+            title='Test group title',
             slug='test_group',
             description='Test group description'
         )
-
 
     def setUp(self):
         self.guest_client = Client()
@@ -46,7 +45,6 @@ class PostURLSTests(TestCase):
         self.authorized_client.force_login(self.user)
         self.authorized_client_post_author = Client()
         self.authorized_client_post_author.force_login(self.author)
-
 
     def test_urls_for_unauthorized_user(self):
         """Страницы index, group/<slug>/, profile/<username>/ и
@@ -64,7 +62,6 @@ class PostURLSTests(TestCase):
             with self.subTest(field=field):
                 self.assertEqual(response.status_code, expected_value)
 
-
     def test_post_edit_available_to_author(self):
         """Страница posts/<post_id>/edit/ доступна автору поста."""
         response = self.authorized_client_post_author.get(
@@ -72,12 +69,10 @@ class PostURLSTests(TestCase):
         )
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
-
     def test_create_post_authorized_user(self):
         """Страница create/ доступна авторизованному пользователю."""
         response = self.authorized_client.get(reverse(POST_CREATE_URL))
         self.assertEqual(response.status_code, HTTPStatus.OK)
-
 
     def test_create_url_redirect_anonymous_on_login(self):
         """Страница по адресу /create/ перенаправит анонимного
@@ -87,7 +82,6 @@ class PostURLSTests(TestCase):
             reverse(POST_CREATE_URL), follow=True
         )
         self.assertRedirects(response, '/auth/login/?next=/create/')
-
 
     def test_urls_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
