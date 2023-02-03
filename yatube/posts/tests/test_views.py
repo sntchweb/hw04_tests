@@ -38,14 +38,12 @@ class PostsViewsTests(TestCase):
                 title='Test group title',
                 slug='test_group'))
 
-
     def setUp(self):
         self.user = User.objects.create_user(username='test_views1')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
         self.authorized_post_author = Client()
         self.authorized_post_author.force_login(self.post.author)
-
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий HTML шаблон."""
@@ -70,7 +68,6 @@ class PostsViewsTests(TestCase):
                 response = self.authorized_post_author.get(reverse_name)
                 self.assertTemplateUsed(response, template)
 
-
     def test_index_context(self):
         """Шаблон index/ сформирован с правильным контекстом."""
         response = self.authorized_client.get(reverse(INDEX_URL))
@@ -78,7 +75,6 @@ class PostsViewsTests(TestCase):
         self.assertEqual(context_object.text, 'Test post text')
         self.assertEqual(context_object.group.title, 'Test group title')
         self.assertEqual(context_object.author.username, 'test_post_author')
-
 
     def test_group_list_context(self):
         """Шаблон group_list/ сформирован с правильным контекстом."""
@@ -89,7 +85,6 @@ class PostsViewsTests(TestCase):
         self.assertEqual(context_object.title, 'Test group title')
         self.assertEqual(context_object.slug, 'test_group')
 
-
     def test_profile_context(self):
         """Шаблон profile/ сформирован с правильным контекстом."""
         response = self.authorized_client.get(
@@ -99,9 +94,8 @@ class PostsViewsTests(TestCase):
         context_object_author = response.context['author']
         self.assertEqual(context_object.text, 'Test post text')
         self.assertEqual(context_object.group.title, 'Test group title')
-        self.assertEqual(context_object.author.username,'test_post_author')
-        self.assertEqual(context_object_author.username,'test_post_author')
-
+        self.assertEqual(context_object.author.username, 'test_post_author')
+        self.assertEqual(context_object_author.username, 'test_post_author')
 
     def test_post_detail_context(self):
         """Шаблон post_detail/ сформирован с правильным контекстом."""
@@ -112,7 +106,6 @@ class PostsViewsTests(TestCase):
         self.assertEqual(context_object.text, 'Test post text')
         self.assertEqual(context_object.group.title, 'Test group title')
         self.assertEqual(context_object.author.username, 'test_post_author')
-
 
     def test_post_create_context(self):
         """Шаблон post_create/ сформирован с правильным контекстом."""
@@ -125,7 +118,6 @@ class PostsViewsTests(TestCase):
             with self.subTest(value=value):
                 form_field = response.context.get('form').fields.get(value)
                 self.assertIsInstance(form_field, expected)
-
 
     def test_post_edit_context(self):
         """Шаблон post_edit/ сформирован с правильным контекстом."""
@@ -142,7 +134,6 @@ class PostsViewsTests(TestCase):
                 self.assertIsInstance(form_field, expected)
         context_object = response.context['is_edit']
         self.assertTrue(context_object, True)
-
 
     def test_post_added_to_the_right_pages(self):
         """Добавленный пост отображается на страницах index/
@@ -185,7 +176,7 @@ class PaginatorTests(TestCase):
         super().setUpClass()
         cls.author = User.objects.create_user(username='test_paginator0')
         cls.group = Group.objects.create(
-            title = 'Test group title',
+            title ='Test group title',
             slug='test_group',
             description='Test group description'
         )
@@ -195,12 +186,10 @@ class PaginatorTests(TestCase):
             ) for i in range(settings.NUMBER_OF_POSTS + 3)
         ])
 
-
     def setUp(self):
         self.user = User.objects.create_user(username='test_paginator1')
         self.authorized_post_author = Client()
         self.authorized_post_author.force_login(self.author)
-
 
     def test_first_page_contains_ten_records(self):
         """Количество постов на первой странице index/, group_list/
@@ -219,7 +208,6 @@ class PaginatorTests(TestCase):
             self.assertIsNotNone(page_obj)
             self.assertIsInstance(page_obj, Page)
             self.assertEqual(len(response.context['page_obj']), 10)
-
 
     def test_second_page_contains_three_records(self):
         """Количество постов на второй странице index/, group_list/

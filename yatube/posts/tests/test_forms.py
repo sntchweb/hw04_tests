@@ -36,7 +36,6 @@ class PostFormTest(TestCase):
             description='Test two group description'
         )
 
-
     def setUp(self):
         self.guest_client = Client()
         self.user = User.objects.create_user(username='test_forms1')
@@ -44,7 +43,6 @@ class PostFormTest(TestCase):
         self.authorized_client.force_login(self.user)
         self.authorized_post_author = Client()
         self.authorized_post_author.force_login(self.post.author)
-
 
     def test_create_post_from(self):
         """Валидная форма создает запись."""
@@ -61,14 +59,13 @@ class PostFormTest(TestCase):
         self.assertRedirects(response,
             reverse(PROFILE_URL, kwargs={'username': self.user})
         )
-        self.assertEqual(Post.objects.count(), posts_count+1)
+        self.assertEqual(Post.objects.count(), posts_count + 1)
         self.assertTrue(
             Post.objects.filter(
                 text=form_data['text'],
                 group=form_data['group'],
             ).exists()
         )
-
 
     def test_author_can_edit_post(self):
         """Автор поста может редактировать текст и менять группу."""

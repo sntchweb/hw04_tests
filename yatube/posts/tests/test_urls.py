@@ -33,7 +33,7 @@ class PostURLSTests(TestCase):
             author=cls.author,
         )
         cls.group = Group.objects.create(
-            title = 'Test group title',
+            title ='Test group title',
             slug='test_group',
             description='Test group description'
         )
