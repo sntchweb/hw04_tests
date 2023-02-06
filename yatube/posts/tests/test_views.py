@@ -2,15 +2,14 @@ from http import HTTPStatus
 
 from django import forms
 from django.contrib.auth import get_user_model
-from django.conf import settings
 from django.core.paginator import Page
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..models import Group, Post
+from posts.forms import PostForm
+from posts.models import Group, Post, User
+from posts.utils import NUMBER_OF_POSTS
 
-
-User = get_user_model()
 
 INDEX_URL = 'posts:index'
 GROUP_URL = 'posts:group_list'
@@ -31,15 +30,20 @@ class PostsViewsTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.user = User.objects.create_user(username='test_views1')
         cls.post = Post.objects.create(
             author=User.objects.create_user(username='test_post_author'),
             text='Test post text',
             group=Group.objects.create(
                 title='Test group title',
                 slug='test_group'))
+        Post.objects.bulk_create([
+            Post(
+                text=f'Test post text', author=cls.post.author, group=cls.post.group
+            ) for i in range(NUMBER_OF_POSTS + 2)
+        ])
 
     def setUp(self):
-        self.user = User.objects.create_user(username='test_views1')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
         self.authorized_post_author = Client()
@@ -66,15 +70,19 @@ class PostsViewsTests(TestCase):
         for template, reverse_name in templates_pages_names.items():
             with self.subTest(reverse_name=reverse_name):
                 response = self.authorized_post_author.get(reverse_name)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
                 self.assertTemplateUsed(response, template)
 
     def test_index_context(self):
         """Шаблон index/ сформирован с правильным контекстом."""
         response = self.authorized_client.get(reverse(INDEX_URL))
         context_object = response.context['page_obj'][0]
-        self.assertEqual(context_object.text, 'Test post text')
-        self.assertEqual(context_object.group.title, 'Test group title')
-        self.assertEqual(context_object.author.username, 'test_post_author')
+        self.assertEqual(context_object.text, self.post.text)
+        self.assertEqual(context_object.group.title, self.post.group.title)
+        self.assertEqual(
+            context_object.author.username,
+            self.post.author.username
+        )
 
     def test_group_list_context(self):
         """Шаблон group_list/ сформирован с правильным контекстом."""
@@ -82,8 +90,8 @@ class PostsViewsTests(TestCase):
             reverse(GROUP_URL, kwargs={'slug': self.post.group.slug})
         )
         context_object = response.context['group']
-        self.assertEqual(context_object.title, 'Test group title')
-        self.assertEqual(context_object.slug, 'test_group')
+        self.assertEqual(context_object.title, self.post.group.title)
+        self.assertEqual(context_object.slug, self.post.group.slug)
 
     def test_profile_context(self):
         """Шаблон profile/ сформирован с правильным контекстом."""
@@ -92,10 +100,16 @@ class PostsViewsTests(TestCase):
         )
         context_object = response.context['page_obj'][0]
         context_object_author = response.context['author']
-        self.assertEqual(context_object.text, 'Test post text')
-        self.assertEqual(context_object.group.title, 'Test group title')
-        self.assertEqual(context_object.author.username, 'test_post_author')
-        self.assertEqual(context_object_author.username, 'test_post_author')
+        self.assertEqual(context_object.text, self.post.text)
+        self.assertEqual(context_object.group.title, self.post.group.title)
+        self.assertEqual(
+            context_object.author.username,
+            self.post.author.username
+        )
+        self.assertEqual(
+            context_object_author.username,
+            self.post.author.username
+        )
 
     def test_post_detail_context(self):
         """Шаблон post_detail/ сформирован с правильным контекстом."""
@@ -103,36 +117,25 @@ class PostsViewsTests(TestCase):
             reverse(POST_DETAIL_URL, kwargs={'post_id': self.post.pk})
         )
         context_object = response.context['post']
-        self.assertEqual(context_object.text, 'Test post text')
-        self.assertEqual(context_object.group.title, 'Test group title')
-        self.assertEqual(context_object.author.username, 'test_post_author')
+        self.assertEqual(context_object.text, self.post.text)
+        self.assertEqual(context_object.group.title, self.post.group.title)
+        self.assertEqual(
+            context_object.author.username,
+            self.post.author.username
+        )
 
     def test_post_create_context(self):
         """Шаблон post_create/ сформирован с правильным контекстом."""
         response = self.authorized_client.get(reverse(POST_CREATE_URL))
-        form_fields = {
-            'text': forms.fields.CharField,
-            'group': forms.fields.ChoiceField,
-        }
-        for value, expected in form_fields.items():
-            with self.subTest(value=value):
-                form_field = response.context.get('form').fields.get(value)
-                self.assertIsInstance(form_field, expected)
+        self.assertIsInstance(response.context.get('form'), PostForm)
 
     def test_post_edit_context(self):
         """Шаблон post_edit/ сформирован с правильным контекстом."""
         response = self.authorized_post_author.get(
             reverse(POST_EDIT_URL, kwargs={'post_id': self.post.pk})
         )
-        form_fields = {
-            'text': forms.fields.CharField,
-            'group': forms.fields.ChoiceField,
-        }
-        for value, expected in form_fields.items():
-            with self.subTest(value=value):
-                form_field = response.context.get('form').fields.get(value)
-                self.assertIsInstance(form_field, expected)
         context_object = response.context['is_edit']
+        self.assertIsInstance(response.context.get('form'), PostForm)
         self.assertTrue(context_object, True)
 
     def test_post_added_to_the_right_pages(self):
@@ -155,41 +158,20 @@ class PostsViewsTests(TestCase):
                 response = self.authorized_client.get(reverse_url)
                 if page_context != 'group':
                     context_object = response.context[page_context][0]
-                    self.assertEqual(context_object.text, 'Test post text')
+                    self.assertEqual(context_object.text, self.post.text)
                     self.assertEqual(
                         context_object.group.title,
-                        'Test group title'
+                        self.post.group.title
                     )
                     self.assertEqual(
                         context_object.author.username,
-                        'test_post_author'
+                        self.post.author.username
                     )
                 else:
                     context_object = response.context[page_context]
-                    self.assertEqual(context_object.title, 'Test group title')
-                    self.assertEqual(context_object.slug, 'test_group')
+                    self.assertEqual(context_object.title, self.post.group.title)
+                    self.assertEqual(context_object.slug, self.post.group.slug)
 
-
-class PaginatorTests(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.author = User.objects.create_user(username='test_paginator0')
-        cls.group = Group.objects.create(
-            title='Test group title',
-            slug='test_group',
-            description='Test group description'
-        )
-        Post.objects.bulk_create([
-            Post(
-                text=f'Test text {i}', author=cls.author, group=cls.group
-            ) for i in range(settings.NUMBER_OF_POSTS + 3)
-        ])
-
-    def setUp(self):
-        self.user = User.objects.create_user(username='test_paginator1')
-        self.authorized_post_author = Client()
-        self.authorized_post_author.force_login(self.author)
 
     def test_first_page_contains_ten_records(self):
         """Количество постов на первой странице index/, group_list/
@@ -198,8 +180,8 @@ class PaginatorTests(TestCase):
         """
         urls_expected_post_number = [
             reverse(INDEX_URL),
-            reverse(GROUP_URL, args=[self.group.slug]),
-            reverse(PROFILE_URL, args=[self.author])
+            reverse(GROUP_URL, args=[self.post.group.slug]),
+            reverse(PROFILE_URL, args=[self.post.author])
         ]
         for url in urls_expected_post_number:
             response = self.client.get(url)
@@ -216,8 +198,8 @@ class PaginatorTests(TestCase):
         """
         urls_expected_post_number = [
             reverse(INDEX_URL),
-            reverse(GROUP_URL, args=[self.group.slug]),
-            reverse(PROFILE_URL, args=[self.author])
+            reverse(GROUP_URL, args=[self.post.group.slug]),
+            reverse(PROFILE_URL, args=[self.post.author])
         ]
         for url in urls_expected_post_number:
             response = self.client.get(url + '?page=2')

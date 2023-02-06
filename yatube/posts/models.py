@@ -5,6 +5,8 @@ from django.conf import settings
 
 User = get_user_model()
 
+FIRST_FIFTEEN_CHARS_OF_TEXT = 15
+
 
 class Group(models.Model):
     title = models.CharField(max_length=200, verbose_name='Заголовок')
@@ -42,7 +44,7 @@ class Post(models.Model):
     )
 
     def __str__(self):
-        return self.text[:settings.FIRST_FIFTEEN_CHARS_OF_TEXT]
+        return self.text[FIRST_FIFTEEN_CHARS_OF_TEXT]
 
     class Meta:
         ordering = ['-pub_date']

@@ -1,10 +1,8 @@
 from django.contrib.auth import get_user_model
-from django.conf import settings
 from django.test import TestCase
 
-from ..models import Group, Post
-
-User = get_user_model()
+from posts.models import Group, Post, User
+from posts.models import FIRST_FIFTEEN_CHARS_OF_TEXT
 
 
 class PostModelTest(TestCase):
@@ -24,10 +22,13 @@ class PostModelTest(TestCase):
 
     def test_models_have_correct_object_names(self):
         """Проверяем, что у моделей корректно работает __str__."""
-        expected_group_name = self.group.title
-        expected_text = self.post.text[:settings.FIRST_FIFTEEN_CHARS_OF_TEXT]
-        self.assertEqual(expected_group_name, str(self.group))
-        self.assertEqual(expected_text, str(self.post))
+        test_str = {
+            self.group.title: self.group,
+            self.post.text[FIRST_FIFTEEN_CHARS_OF_TEXT]: self.post,
+        }
+        for correct_str, expected_value in test_str.items():
+            with self.subTest(correct_str=correct_str):
+                self.assertEqual(correct_str, str(expected_value))
 
     def test_verbose_name(self):
         """Проверяем, что verbose_name модели Post совпадает с ожидаемым."""

@@ -4,10 +4,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
 from django.urls import reverse
 
-from ..models import Post, Group
+from posts.models import Group, Post, User
 
-
-User = get_user_model()
 
 INDEX_URL = 'posts:index'
 GROUP_URL = 'posts:group_list'
@@ -27,6 +25,7 @@ class PostURLSTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.user = User.objects.create_user(username='test_urls1')
         cls.author = User.objects.create_user(username='test_urls0')
         cls.post = Post.objects.create(
             text='Test post text',
@@ -37,10 +36,15 @@ class PostURLSTests(TestCase):
             slug='test_group',
             description='Test group description'
         )
+        cls.url_templates_names = {
+            INDEX_URL: (INDEX_TEMPLATE, {}),
+            GROUP_URL: (GROUP_TEMPLATE, {'slug': cls.group.slug}),
+            PROFILE_URL: (PROFILE_TEMPLATE, {'username': cls.user}),
+            POST_ID_URL: (POST_ID_TEMPLATE, {'post_id': cls.post.pk})
+        }
 
     def setUp(self):
         self.guest_client = Client()
-        self.user = User.objects.create_user(username='test_urls1')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
         self.authorized_client_post_author = Client()
@@ -75,23 +79,24 @@ class PostURLSTests(TestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_create_url_redirect_anonymous_on_login(self):
-        """Страница по адресу /create/ перенаправит анонимного
+        """Страницы по адресу create/ и /<post_id>/edit/ перенаправит анонимного
         пользователя на страницу логина.
         """
-        response = self.guest_client.get(
-            reverse(POST_CREATE_URL), follow=True
-        )
-        self.assertRedirects(response, '/auth/login/?next=/create/')
+        redirect_urls = {
+            reverse(POST_CREATE_URL): '/auth/login/?next=/create/',
+            reverse(
+                POST_EDIT_URL,
+                kwargs={'post_id': self.post.pk}
+            ): f'/auth/login/?next=/posts/{self.post.pk}/edit/',
+        }
+        for url, expected_redirect in redirect_urls.items():
+            with self.subTest(url=url):
+                response = self.guest_client.get(url, follow=True)
+                self.assertRedirects(response, expected_redirect)
 
     def test_urls_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
-        url_templates_names = {
-            INDEX_URL: (INDEX_TEMPLATE, {}),
-            GROUP_URL: (GROUP_TEMPLATE, {'slug': self.group.slug}),
-            PROFILE_URL: (PROFILE_TEMPLATE, {'username': self.user}),
-            POST_ID_URL: (POST_ID_TEMPLATE, {'post_id': self.post.pk})
-        }
-        for address, params in url_templates_names.items():
+        for address, params in self.url_templates_names.items():
             template, arguments = params
             response = self.authorized_client.get(
                 reverse(address, kwargs=arguments)
