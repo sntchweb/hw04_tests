@@ -1,7 +1,6 @@
 from http import HTTPStatus
 
 from django import forms
-from django.contrib.auth import get_user_model
 from django.core.paginator import Page
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -39,7 +38,9 @@ class PostsViewsTests(TestCase):
                 slug='test_group'))
         Post.objects.bulk_create([
             Post(
-                text=f'Test post text', author=cls.post.author, group=cls.post.group
+                text='Test post text',
+                author=cls.post.author,
+                group=cls.post.group
             ) for i in range(NUMBER_OF_POSTS + 2)
         ])
 
@@ -169,9 +170,14 @@ class PostsViewsTests(TestCase):
                     )
                 else:
                     context_object = response.context[page_context]
-                    self.assertEqual(context_object.title, self.post.group.title)
-                    self.assertEqual(context_object.slug, self.post.group.slug)
-
+                    self.assertEqual(
+                        context_object.title,
+                        self.post.group.title
+                    )
+                    self.assertEqual(
+                        context_object.slug,
+                        self.post.group.slug
+                    )
 
     def test_first_page_contains_ten_records(self):
         """Количество постов на первой странице index/, group_list/

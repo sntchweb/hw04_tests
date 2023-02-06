@@ -1,8 +1,5 @@
-from http import HTTPStatus
-
 from django.test import Client, TestCase
 from django.urls import reverse
-from django.contrib.auth import get_user_model
 
 from posts.models import Group, Post, User
 
@@ -76,10 +73,9 @@ class PostFormTest(TestCase):
             'group': self.new_group.id
         }
         response_edit = self.authorized_post_author.post(
-            reverse(POST_EDIT_URL,
-                    kwargs={'post_id': self.post.pk}),
-                    data=form_data,
-                    follow=True,
+            reverse(POST_EDIT_URL, kwargs={'post_id': self.post.pk}),
+            data=form_data,
+            follow=True,
         )
         post_change = Post.objects.get(id=self.post.pk)
         self.assertEqual(post_change.text, form_data['text'])
