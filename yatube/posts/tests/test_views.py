@@ -1,6 +1,5 @@
 from http import HTTPStatus
 
-from django import forms
 from django.core.paginator import Page
 from django.test import Client, TestCase
 from django.urls import reverse
