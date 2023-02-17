@@ -2,8 +2,10 @@ from http import HTTPStatus
 
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.core.cache import cache
 
 from posts.models import Group, Post, User
+from yatube.urls import handler404, handler403
 
 
 INDEX_URL = 'posts:index'
@@ -13,11 +15,15 @@ POST_ID_URL = 'posts:post_detail'
 POST_CREATE_URL = 'posts:post_create'
 POST_EDIT_URL = 'posts:post_edit'
 UNEXISTING_PAGE_URL = '/bad/address/'
+CUSTOM_404_PAGE_URL = handler404
+CUSTOM_403_PAGE_URL = handler403
 
 INDEX_TEMPLATE = 'posts/index.html'
 GROUP_TEMPLATE = 'posts/group_list.html'
 PROFILE_TEMPLATE = 'posts/profile.html'
 POST_ID_TEMPLATE = 'posts/post_detail.html'
+CUSTOM_404_PAGE_TEMPLATE = 'core/404.html'
+CUSTOM_403_PAGE_TEMPLATE = 'core/403csrf.html'
 
 
 class PostURLSTests(TestCase):
@@ -48,6 +54,7 @@ class PostURLSTests(TestCase):
         self.authorized_client.force_login(self.user)
         self.authorized_client_post_author = Client()
         self.authorized_client_post_author.force_login(self.author)
+        cache.clear()
 
     def test_urls_for_unauthorized_user(self):
         """Страницы index, group/<slug>/, profile/<username>/ и
@@ -102,3 +109,10 @@ class PostURLSTests(TestCase):
             )
             with self.subTest(address=address):
                 self.assertTemplateUsed(response, template)
+
+    def test_404_page_uses_custom_template(self):
+        """Страница 404 использует кастомный шаблон."""
+        response = self.guest_client.get(
+            CUSTOM_404_PAGE_URL
+        )
+        self.assertTemplateUsed(response, CUSTOM_404_PAGE_TEMPLATE)

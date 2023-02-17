@@ -3,8 +3,11 @@ from http import HTTPStatus
 from django.core.paginator import Page
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.core.cache import cache
 
-from posts.forms import PostForm
+from django import forms
+
+from posts.forms import CommentForm, PostForm
 from posts.models import Group, Post, User
 from posts.utils import NUMBER_OF_POSTS
 
@@ -15,6 +18,9 @@ PROFILE_URL = 'posts:profile'
 POST_DETAIL_URL = 'posts:post_detail'
 POST_CREATE_URL = 'posts:post_create'
 POST_EDIT_URL = 'posts:post_edit'
+FOLLOW_URL = 'posts:profile_follow'
+UNFOLLOW_URL = 'posts:profile_unfollow'
+FOLLOW_INDEX_URL = 'posts:follow_index'
 
 INDEX_TEMPLATE = 'posts/index.html'
 GROUP_TEMPLATE = 'posts/group_list.html'
@@ -22,12 +28,14 @@ PROFILE_TEMPLATE = 'posts/profile.html'
 POST_DETAIL_TEMPLATE = 'posts/post_detail.html'
 POST_CREATE_TEMPLATE = 'posts/create_post.html'
 POST_EDIT_TEMPLATE = 'posts/create_post.html'
+FOLLOW_INDEX_TEMPLATE = 'posts/follow.html'
 
 
 class PostsViewsTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.ufollowing_user = User.objects.create_user(username='unfollowing')
         cls.user = User.objects.create_user(username='test_views1')
         cls.post = Post.objects.create(
             author=User.objects.create_user(username='test_post_author'),
@@ -44,10 +52,13 @@ class PostsViewsTests(TestCase):
         ])
 
     def setUp(self):
+        self.unfollowing_user = Client()
+        self.unfollowing_user.force_login(self.ufollowing_user)
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
         self.authorized_post_author = Client()
         self.authorized_post_author.force_login(self.post.author)
+        cache.clear()
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий HTML шаблон."""
@@ -79,6 +90,7 @@ class PostsViewsTests(TestCase):
         context_object = response.context['page_obj'][0]
         self.assertEqual(context_object.text, self.post.text)
         self.assertEqual(context_object.group.title, self.post.group.title)
+        self.assertIsNotNone(context_object.image)
         self.assertEqual(
             context_object.author.username,
             self.post.author.username
@@ -89,9 +101,13 @@ class PostsViewsTests(TestCase):
         response = self.authorized_client.get(
             reverse(GROUP_URL, kwargs={'slug': self.post.group.slug})
         )
-        context_object = response.context['group']
-        self.assertEqual(context_object.title, self.post.group.title)
-        self.assertEqual(context_object.slug, self.post.group.slug)
+        context_object = response.context['page_obj'][0]
+        context_object_group = response.context['group']
+        self.assertEqual(context_object.text, self.post.text)
+        self.assertEqual(context_object.group.title, self.post.group.title)
+        self.assertEqual(context_object_group.title, self.post.group.title)
+        self.assertEqual(context_object_group.slug, self.post.group.slug)
+        self.assertIsNotNone(context_object.image)
 
     def test_profile_context(self):
         """Шаблон profile/ сформирован с правильным контекстом."""
@@ -102,6 +118,7 @@ class PostsViewsTests(TestCase):
         context_object_author = response.context['author']
         self.assertEqual(context_object.text, self.post.text)
         self.assertEqual(context_object.group.title, self.post.group.title)
+        self.assertIsNotNone(context_object.image)
         self.assertEqual(
             context_object.author.username,
             self.post.author.username
@@ -119,6 +136,7 @@ class PostsViewsTests(TestCase):
         context_object = response.context['post']
         self.assertEqual(context_object.text, self.post.text)
         self.assertEqual(context_object.group.title, self.post.group.title)
+        self.assertIsNotNone(context_object.image)
         self.assertEqual(
             context_object.author.username,
             self.post.author.username
@@ -213,3 +231,63 @@ class PostsViewsTests(TestCase):
             self.assertIsNotNone(page_obj)
             self.assertIsInstance(page_obj, Page)
             self.assertEqual(len(response.context['page_obj']), 3)
+
+    def test_cache_index_page(self):
+        """Главная страница кешируется."""
+        response1 = self.client.get(reverse(INDEX_URL) + '?page=2')
+        Post.objects.create(
+            text=self.post.text,
+            author=self.post.author,
+        )
+        response2 = self.client.get(reverse(INDEX_URL) + '?page=2')
+        self.assertEqual(response1.content, response2.content)
+        cache.clear()
+        response3 = self.client.get(reverse(INDEX_URL) + '?page=2')
+        self.assertNotEqual(response1.content, response3.content)
+
+    def test_authorized_user_can_follow_and_unfollow(self):
+        """Авторизованный пользователь может подписываться на
+        других пользователей и удалять их из подписок."""
+        follower = User.objects.get(username=self.user)
+        follows_count = follower.follower.all().count()
+        response_follow = self.authorized_client.get(
+            reverse(
+                FOLLOW_URL,
+                kwargs={'username': self.post.author})
+        )
+        self.assertEqual(follower.follower.all().count(), follows_count + 1)
+        follows_before_unfollow = follower.follower.all().count()
+        response_unfollow = self.authorized_client.get(
+            reverse(
+                UNFOLLOW_URL,
+                kwargs={'username': self.post.author})
+        )
+        self.assertEqual(
+            follower.follower.all().count(),
+            follows_before_unfollow - 1
+        )
+
+    def test_new_post_on_followers_page(self):
+        """Новая запись пользователя появляется в ленте тех,
+        кто на него подписан и не появляется в ленте тех, кто не подписан."""
+        follower = User.objects.get(username=self.user)
+        response_follow = self.authorized_client.get(
+            reverse(
+                FOLLOW_URL,
+                kwargs={'username': self.post.author})
+        )
+        Post.objects.create(
+            text=self.post.text,
+            author=self.post.author,
+        )
+        response_new_post_in_feed = self.authorized_client.get(
+            reverse(FOLLOW_INDEX_URL)
+        )
+        new_post_in_context = response_new_post_in_feed.context['page_obj'][0]
+        self.assertEqual(new_post_in_context.text, self.post.text)
+        
+        response_unfollow_user = self.unfollowing_user.get(
+            reverse(FOLLOW_INDEX_URL)
+        )
+        context_unfollowing = response_unfollow_user.context['page_obj']
+        self.assertEqual(len(context_unfollowing), 0)

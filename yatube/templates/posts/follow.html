@@ -3,14 +3,14 @@
 
 <title>
   {% block title %}
-    Последние обновления на сайте
+    Последние записи избранных авторов
   {% endblock %}
 </title>
 
-{% comment %} {% cache 20 index_page %} {% endcomment %}
+{% cache 20 index_page %}
 {% block content %}
   <div class="container py-5">
-    <h1>Последние обновления на сайте</h1>
+    <h1>Последние записи избранных авторов</h1>
     <br>
     {% include 'posts/includes/switcher.html' %}
     {% for post in page_obj %}
@@ -25,4 +25,4 @@
     {% include 'posts/includes/paginator.html' %}
   </div>
 {% endblock %}
-{% comment %} {% endcache %} {% endcomment %}
+{% endcache %}
